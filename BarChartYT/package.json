@@ -1,5 +1,6 @@
 {
   "name": "visual",
+  "version": "1.0.0",
   "dependencies": {
     "@types/d3": "^3.5.41",
     "bootstrap": "^4.1.3",
