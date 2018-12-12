@@ -57,33 +57,8 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         @logExceptions()
         public update(options: VisualUpdateOptions) {
             console.log(`Update: `, options)
-            let sample: DataPoint[] = [  //update the data
-                {
-                    category: "Apples",
-                    value: 10
-                },
-                {
-                    category: "Bananas",
-                    value: 20
-                },
-                {
-                    category: "Cherries",
-                    value: 30
-                },
-                {
-                    category: "Dates",
-                    value: 40
-                },
-                {
-                    category: "Elderberries",
-                    value: 50
-                }
-            ];
 
-            let viewModel: ViewModel = { //declare the ViewModel
-                dataPoints: sample, 
-                maxValue: d3.max(sample, d => d.value)
-            };
+            let viewModel = this.getViewModel(options);
 
             let width = options.viewport.width; //declare for container
             let height = options.viewport.height;
@@ -118,7 +93,35 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                 
             bars.exit()
                 .remove();
+        }
+        private getViewModel(options: VisualUpdateOptions): ViewModel { //get data dynamically from the user
+            let dv = options.dataViews; //get the data into a specific shape
 
+            let viewModel: ViewModel = { //init something even if there is nothign there
+                dataPoints: [],
+                maxValue: 0
+            };
+            if (!dv //dont return anything untill all fields are filled in
+                || !dv[0].categorical
+                || !dv[0].categorical.categories
+                || !dv[0].categorical.categories[0].source
+                || !dv[0].categorical.values)
+                return viewModel;
+
+            let view = dv[0].categorical; //get the categorical view itself
+            let categories = view.categories[0]; //get category array /0 is for multiple ceires
+            let values = view.values[0]; //0 is for multiple ceries
+
+            for (let i = 0, len = Math.max(categories.values.length, values.values.length); i < len; i++) { //loop through everything
+                viewModel.dataPoints.push({ //push everyting to the viewModel
+                    category: <string>categories.values[i], //since categories.value is of PrimitiveType we have to specify Type here again
+                    value: <number>values.values[i]
+                });
+            }
+
+            viewModel.maxValue = d3.max(viewModel.dataPoints, d => d.value);
+
+            return viewModel;
         }
     }
 

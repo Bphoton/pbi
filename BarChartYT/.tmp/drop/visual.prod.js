@@ -638,32 +638,7 @@ var powerbi;
                     }
                     Visual.prototype.update = function (options) {
                         console.log("Update: ", options);
-                        var sample = [
-                            {
-                                category: "Apples",
-                                value: 10
-                            },
-                            {
-                                category: "Bananas",
-                                value: 20
-                            },
-                            {
-                                category: "Cherries",
-                                value: 30
-                            },
-                            {
-                                category: "Dates",
-                                value: 40
-                            },
-                            {
-                                category: "Elderberries",
-                                value: 50
-                            }
-                        ];
-                        var viewModel = {
-                            dataPoints: sample,
-                            maxValue: d3.max(sample, function (d) { return d.value; })
-                        };
+                        var viewModel = this.getViewModel(options);
                         var width = options.viewport.width; //declare for container
                         var height = options.viewport.height;
                         this.svg.attr({
@@ -690,6 +665,30 @@ var powerbi;
                         });
                         bars.exit()
                             .remove();
+                    };
+                    Visual.prototype.getViewModel = function (options) {
+                        var dv = options.dataViews; //get the data into a specific shape
+                        var viewModel = {
+                            dataPoints: [],
+                            maxValue: 0
+                        };
+                        if (!dv //dont return anything untill all fields are filled in
+                            || !dv[0].categorical
+                            || !dv[0].categorical.categories
+                            || !dv[0].categorical.categories[0].source
+                            || !dv[0].categorical.values)
+                            return viewModel;
+                        var view = dv[0].categorical; //get the categorical view itself
+                        var categories = view.categories[0]; //get category array /0 is for multiple ceires
+                        var values = view.values[0]; //0 is for multiple ceries
+                        for (var i = 0, len = Math.max(categories.values.length, values.values.length); i < len; i++) {
+                            viewModel.dataPoints.push({
+                                category: categories.values[i],
+                                value: values.values[i]
+                            });
+                        }
+                        viewModel.maxValue = d3.max(viewModel.dataPoints, function (d) { return d.value; });
+                        return viewModel;
                     };
                     return Visual;
                 }());
