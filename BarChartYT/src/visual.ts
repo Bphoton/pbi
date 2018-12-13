@@ -30,6 +30,7 @@ module powerbi.extensibility.visual {
     interface DataPoint { //DataPoint is not Types here, only category and value
         category: string;
         value: number;
+        color: string;
     };
 
     //Container for the datapoints plus some extra data
@@ -58,9 +59,9 @@ module powerbi.extensibility.visual {
         public update(options: VisualUpdateOptions) {
             console.log(`Update: `, options)
 
-            let viewModel = this.getViewModel(options);
+            let viewModel = this.getViewModel(options); //asign ViewModel
 
-            let width = options.viewport.width; //declare for container
+            let width = options.viewport.width; //asign for container
             let height = options.viewport.height;
 
             this.svg.attr({ //update svg to the size of the container
@@ -68,19 +69,19 @@ module powerbi.extensibility.visual {
                 height: height
             });
 
-            let yScale = d3.scale.linear() //declare the yScale
+            let yScale = d3.scale.linear() //asign the yScale
                 .domain([0, viewModel.maxValue]) //get viewModel max
                 .range([height, 0]); //flip the axis /get options.viewport.height
        
-            let xScale = d3.scale.ordinal() //declare the xScale
+            let xScale = d3.scale.ordinal() //asign the xScale
                 .domain(viewModel.dataPoints.map(d => d.category)) //map category to range
                 .rangeRoundBands([0, width], this.xPadding); //(boundaries, padding)
             
-            let bars = this.barGroup
+            let bars = this.barGroup //Bin html to data with svg
                 .selectAll(".bar")
                 .data(viewModel.dataPoints);
             
-            bars.enter()
+            bars.enter() //Enter the data
                 .append("rect")
                 .classed("bar", true);
             
@@ -89,15 +90,18 @@ module powerbi.extensibility.visual {
                     height: d => height - yScale(d.value), //flip the yAxis
                     y: d => yScale(d.value), //get value
                     x: d => xScale(d.category) //get category
-                });
+                })
+                .style({
+                    fill: d => d.color
+                })
                 
-            bars.exit()
+            bars.exit() //Remove the data
                 .remove();
         }
         private getViewModel(options: VisualUpdateOptions): ViewModel { //get data dynamically from the user
             let dv = options.dataViews; //get the data into a specific shape
 
-            let viewModel: ViewModel = { //init something even if there is nothign there
+            let viewModel: ViewModel = { //init viewModel /init something even if there is nothign there
                 dataPoints: [],
                 maxValue: 0
             };
@@ -107,18 +111,19 @@ module powerbi.extensibility.visual {
                 || !dv[0].categorical.categories[0].source
                 || !dv[0].categorical.values)
                 return viewModel;
+           
+            let categories = dv[0].categorical.categories[0]; //get category array /0 is for multiple ceires
+            let values = dv[0].categorical.values[0]; //0 is for multiple ceries
 
-            let view = dv[0].categorical; //get the categorical view itself
-            let categories = view.categories[0]; //get category array /0 is for multiple ceires
-            let values = view.values[0]; //0 is for multiple ceries
-
+            //make sure categories and values are the same legth
             for (let i = 0, len = Math.max(categories.values.length, values.values.length); i < len; i++) { //loop through everything
                 viewModel.dataPoints.push({ //push everyting to the viewModel
                     category: <string>categories.values[i], //since categories.value is of PrimitiveType we have to specify Type here again
-                    value: <number>values.values[i]
+                    value: <number>values.values[i],
+                    color: this.host.colorPalette.getColor(<string>categories.values[i]).value
                 });
             }
-
+            //from the viewModel get the max
             viewModel.maxValue = d3.max(viewModel.dataPoints, d => d.value);
 
             return viewModel;

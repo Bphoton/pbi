@@ -638,23 +638,23 @@ var powerbi;
                     }
                     Visual.prototype.update = function (options) {
                         console.log("Update: ", options);
-                        var viewModel = this.getViewModel(options);
-                        var width = options.viewport.width; //declare for container
+                        var viewModel = this.getViewModel(options); //asign ViewModel
+                        var width = options.viewport.width; //asign for container
                         var height = options.viewport.height;
                         this.svg.attr({
                             width: width,
                             height: height
                         });
-                        var yScale = d3.scale.linear() //declare the yScale
+                        var yScale = d3.scale.linear() //asign the yScale
                             .domain([0, viewModel.maxValue]) //get viewModel max
                             .range([height, 0]); //flip the axis /get options.viewport.height
-                        var xScale = d3.scale.ordinal() //declare the xScale
+                        var xScale = d3.scale.ordinal() //asign the xScale
                             .domain(viewModel.dataPoints.map(function (d) { return d.category; })) //map category to range
                             .rangeRoundBands([0, width], this.xPadding); //(boundaries, padding)
-                        var bars = this.barGroup
+                        var bars = this.barGroup //Bin html to data with svg
                             .selectAll(".bar")
                             .data(viewModel.dataPoints);
-                        bars.enter()
+                        bars.enter() //Enter the data
                             .append("rect")
                             .classed("bar", true);
                         bars.attr({
@@ -662,8 +662,11 @@ var powerbi;
                             height: function (d) { return height - yScale(d.value); },
                             y: function (d) { return yScale(d.value); },
                             x: function (d) { return xScale(d.category); } //get category
+                        })
+                            .style({
+                            fill: function (d) { return d.color; }
                         });
-                        bars.exit()
+                        bars.exit() //Remove the data
                             .remove();
                     };
                     Visual.prototype.getViewModel = function (options) {
@@ -678,15 +681,17 @@ var powerbi;
                             || !dv[0].categorical.categories[0].source
                             || !dv[0].categorical.values)
                             return viewModel;
-                        var view = dv[0].categorical; //get the categorical view itself
-                        var categories = view.categories[0]; //get category array /0 is for multiple ceires
-                        var values = view.values[0]; //0 is for multiple ceries
+                        var categories = dv[0].categorical.categories[0]; //get category array /0 is for multiple ceires
+                        var values = dv[0].categorical.values[0]; //0 is for multiple ceries
+                        //make sure categories and values are the same legth
                         for (var i = 0, len = Math.max(categories.values.length, values.values.length); i < len; i++) {
                             viewModel.dataPoints.push({
                                 category: categories.values[i],
-                                value: values.values[i]
+                                value: values.values[i],
+                                color: this.host.colorPalette.getColor(categories.values[i]).value
                             });
                         }
+                        //from the viewModel get the max
                         viewModel.maxValue = d3.max(viewModel.dataPoints, function (d) { return d.value; });
                         return viewModel;
                     };
