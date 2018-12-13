@@ -13,6 +13,17 @@
         }
     ],
     "objects": {
+        "xAxis": {
+            "displayName": "X Axis",
+            "properties": {
+                "show": {
+                    "displayName": "Show X Axis",
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
         "dataPoint": {
             "displayName": "Data colors",
             "properties": {

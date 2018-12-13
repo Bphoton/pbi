@@ -23,6 +23,7 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *  THE SOFTWARE.
  */
+import DataViewObjects = powerbi.extensibility.utils.dataview.DataViewObjects;
 
 module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  {
     "use strict";
@@ -56,14 +57,27 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         private settings = {
             axis: {
                 x: {
-                    padding: 50
+                    padding: {
+                        default: 50,
+                        value: 50
+                    },
+                    show: {
+                        default: true,
+                        value: true
+                    }
                 },
                 y: {
-                    padding: 50
+                    padding: {
+                        default: 50,
+                        value: 50
+                    }
                 }
             },
             border: {
-                top: 10
+                top: {
+                    default: 10,
+                    value: 10
+                }
             }
         }
 
@@ -72,7 +86,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
             this.svg = d3.select(options.element) //o.e is the main container for pbiviz
                 .append("svg")
                 .classed("bar-Chart", true); //true to write to the element
-            
+
             this.barGroup = this.svg.append("g")
                 .classed('bar-Group', true);
 
@@ -83,11 +97,12 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                 .classed("y-axis", true);
 
             this.selectionManager = this.host.createSelectionManager();
-        
+
         }
         @logExceptions()
         public update(options: VisualUpdateOptions) {
-            console.log(`Update: `, options)
+console.log(`Update: `, options);
+            this.updateSettings(options);
 
             let viewModel = this.getViewModel(options); //asign ViewModel
 
@@ -99,10 +114,12 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                 height: height
             });
 
+            let xAxisPadding = this.settings.axis.x.show.value ? this.settings.axis.x.padding.value : 0;
+
             let yScale = d3.scale.linear() //asign the yScale
                 .domain([0, viewModel.maxValue]) //get viewModel max
-                .range([height - this.settings.axis.x.padding, 0 + this.settings.border.top]); //flip the axis /get options.viewport.height, so the number does not get cut off
-                                                                    //subtract 50px for x axis
+                .range([height - xAxisPadding, 0 + this.settings.border.top.value]); //flip the axis /get options.viewport.height, so the number does not get cut off
+
             let yAxis = d3.svg.axis()
                 .scale(yScale)
                 .orient("left")
@@ -124,7 +141,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
 
             let xScale = d3.scale.ordinal() //asign the xScale
                 .domain(viewModel.dataPoints.map(d => d.category)) //map category to range
-                .rangeRoundBands([this.settings.axis.y.padding, width], this.xPadding); //(boundaries, padding)
+                .rangeRoundBands([this.settings.axis.y.padding.value, width], this.xPadding); //(boundaries, padding)
 
             let xAxis = d3.svg.axis()
                 .scale(xScale)
@@ -134,13 +151,13 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
             //xAxis(this.xAxisGroup); //same as below
             this.xAxisGroup.call(xAxis); //w/this now we can transfor it with another function
 
-//            // this.yAxisGroup = this.svg.append("g")
+            //            // this.yAxisGroup = this.svg.append("g")
             //     .classed("y-axis", true);
 
             this.xAxisGroup
                 .call(xAxis)
                 .attr({
-                    transform: "translate(0, " + (height - this.settings.axis.x.padding) + ")"
+                    transform: "translate(0, " + (height - xAxisPadding) + ")"
                 })
                 .style({
                     fill: "#777777"
@@ -153,46 +170,56 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                     "test-anchor": "end",
                     "font-size": "x-small"
                 });
-            
+
             let bars = this.barGroup //Bin html to data with svg
                 .selectAll(".bar")
                 .data(viewModel.dataPoints);
-            
+
             bars.enter() //Enter the data
                 .append("rect")
                 .classed("bar", true);
-            
+
             bars.attr({
-                    width: xScale.rangeBand(), //width of the bar
-                    height: d => height - yScale(d.value) - this.settings.axis.x.padding, //flip the yAxis
-                    y: d => yScale(d.value), //get value
-                    x: d => xScale(d.category) //get category
-                })
+                width: xScale.rangeBand(), //width of the bar
+                height: d => height - yScale(d.value) - xAxisPadding, //flip the yAxis
+                y: d => yScale(d.value), //get value
+                x: d => xScale(d.category) //get category
+            })
                 .style({
                     fill: d => d.color,
                     "fill-opacity": d => viewModel.highlights ? d.highlighted ? 1.0 : 0.5 : 1.0
                 })
                 .on("click", (d) => { //get the id of the selection
                     this.selectionManager
-                    .select(d.identity, true) //true: for multiple selections
-                    .then(ids => {
-                        bars.style({ //check to see if the current id is selected then highlight 
-                            "fill-opacity": ids.length > 0 ? 
-                            d => ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5
-                            : 1.0 
+                        .select(d.identity, true) //true: for multiple selections
+                        .then(ids => {
+                            bars.style({ //check to see if the current id is selected then highlight 
+                                "fill-opacity": ids.length > 0 ?
+                                    d => ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5
+                                    : 1.0
+                            });
                         });
-                    });
                 }); //need to add ctrl click for multiple selections                                                
             bars.exit() //Remove the data
                 .remove();
         }
+
+        private updateSettings(options: VisualUpdateOptions) {
+            this.settings.axis.x.show.value = DataViewObjects.getValue(
+                options.dataViews[0].metadata.objects, {
+                    objectName: "xAxis",
+                    propertyName: "show"
+                },
+                this.settings.axis.x.show.default);
+        }
+
         private getViewModel(options: VisualUpdateOptions): ViewModel { //get data dynamically from the user
             let dv = options.dataViews; //get the data into a specific shape
 
             let viewModel: ViewModel = { //init viewModel /init something even if there is nothign there
                 dataPoints: [],
                 maxValue: 0,
-                highlights: false 
+                highlights: false
             };
             if (!dv //dont return anything untill all fields are filled in
                 || !dv[0].categorical
@@ -200,7 +227,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                 || !dv[0].categorical.categories[0].source
                 || !dv[0].categorical.values)
                 return viewModel;
-           
+
             let categories = dv[0].categorical.categories[0]; //get category array /0 is for multiple ceires
             let values = dv[0].categorical.values[0]; //0 is for multiple ceries
             let highlights = values.highlights; //optional, thus may or may not be defined
@@ -223,13 +250,31 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
 
             return viewModel;
         }
+        public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): //pbi calls when properties are updated in the settings (Propertis pane)
+            VisualObjectInstanceEnumeration {
+            
+            let propertyGroupName = options.objectName;
+            let properties: VisualObjectInstance[] = [];
+                switch (propertyGroupName) {
+                case "xAxis":
+                    properties.push({
+                        objectName: propertyGroupName,
+                        properties: {
+                            show: this.settings.axis.x.show.value
+                        },
+                        selector: null
+                    });
+                    break;
+            };
+            return properties;
+        }
     }
 
-     // Check for errors
-     export function logExceptions(): Function {
+    // Check for errors
+    export function logExceptions(): Function {
         return function (target: Object, propertyKey: string, descriptor: TypedPropertyDescriptor<Function>)
-        : TypedPropertyDescriptor<Function> {
-            
+            : TypedPropertyDescriptor<Function> {
+
             return {
                 value: function () {
                     try {

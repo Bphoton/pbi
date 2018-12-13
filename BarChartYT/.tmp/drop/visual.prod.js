@@ -615,6 +615,7 @@ var powerbi;
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *  THE SOFTWARE.
  */
+var DataViewObjects = powerbi.extensibility.utils.dataview.DataViewObjects;
 var powerbi;
 (function (powerbi) {
     var extensibility;
@@ -634,14 +635,27 @@ var powerbi;
                         this.settings = {
                             axis: {
                                 x: {
-                                    padding: 50
+                                    padding: {
+                                        default: 50,
+                                        value: 50
+                                    },
+                                    show: {
+                                        default: true,
+                                        value: true
+                                    }
                                 },
                                 y: {
-                                    padding: 50
+                                    padding: {
+                                        default: 50,
+                                        value: 50
+                                    }
                                 }
                             },
                             border: {
-                                top: 10
+                                top: {
+                                    default: 10,
+                                    value: 10
+                                }
                             }
                         };
                         this.host = options.host; //hover over to see Type /make it a member var
@@ -659,6 +673,7 @@ var powerbi;
                     Visual.prototype.update = function (options) {
                         var _this = this;
                         console.log("Update: ", options);
+                        this.updateSettings(options);
                         var viewModel = this.getViewModel(options); //asign ViewModel
                         var width = options.viewport.width; //asign for container
                         var height = options.viewport.height;
@@ -666,10 +681,10 @@ var powerbi;
                             width: width,
                             height: height
                         });
+                        var xAxisPadding = this.settings.axis.x.show.value ? this.settings.axis.x.padding.value : 0;
                         var yScale = d3.scale.linear() //asign the yScale
                             .domain([0, viewModel.maxValue]) //get viewModel max
-                            .range([height - this.settings.axis.x.padding, 0 + this.settings.border.top]); //flip the axis /get options.viewport.height, so the number does not get cut off
-                        //subtract 50px for x axis
+                            .range([height - xAxisPadding, 0 + this.settings.border.top.value]); //flip the axis /get options.viewport.height, so the number does not get cut off
                         var yAxis = d3.svg.axis()
                             .scale(yScale)
                             .orient("left")
@@ -689,7 +704,7 @@ var powerbi;
                         });
                         var xScale = d3.scale.ordinal() //asign the xScale
                             .domain(viewModel.dataPoints.map(function (d) { return d.category; })) //map category to range
-                            .rangeRoundBands([this.settings.axis.y.padding, width], this.xPadding); //(boundaries, padding)
+                            .rangeRoundBands([this.settings.axis.y.padding.value, width], this.xPadding); //(boundaries, padding)
                         var xAxis = d3.svg.axis()
                             .scale(xScale)
                             .orient("buttom")
@@ -701,7 +716,7 @@ var powerbi;
                         this.xAxisGroup
                             .call(xAxis)
                             .attr({
-                            transform: "translate(0, " + (height - this.settings.axis.x.padding) + ")"
+                            transform: "translate(0, " + (height - xAxisPadding) + ")"
                         })
                             .style({
                             fill: "#777777"
@@ -722,7 +737,7 @@ var powerbi;
                             .classed("bar", true);
                         bars.attr({
                             width: xScale.rangeBand(),
-                            height: function (d) { return height - yScale(d.value) - _this.settings.axis.x.padding; },
+                            height: function (d) { return height - yScale(d.value) - xAxisPadding; },
                             y: function (d) { return yScale(d.value); },
                             x: function (d) { return xScale(d.category); } //get category
                         })
@@ -743,6 +758,12 @@ var powerbi;
                         }); //need to add ctrl click for multiple selections                                                
                         bars.exit() //Remove the data
                             .remove();
+                    };
+                    Visual.prototype.updateSettings = function (options) {
+                        this.settings.axis.x.show.value = DataViewObjects.getValue(options.dataViews[0].metadata.objects, {
+                            objectName: "xAxis",
+                            propertyName: "show"
+                        }, this.settings.axis.x.show.default);
                     };
                     Visual.prototype.getViewModel = function (options) {
                         var dv = options.dataViews; //get the data into a specific shape
@@ -776,6 +797,23 @@ var powerbi;
                         viewModel.maxValue = d3.max(viewModel.dataPoints, function (d) { return d.value; });
                         viewModel.highlights = viewModel.dataPoints.filter(function (d) { return d.highlighted; }).length > 0;
                         return viewModel;
+                    };
+                    Visual.prototype.enumerateObjectInstances = function (options) {
+                        var propertyGroupName = options.objectName;
+                        var properties = [];
+                        switch (propertyGroupName) {
+                            case "xAxis":
+                                properties.push({
+                                    objectName: propertyGroupName,
+                                    properties: {
+                                        show: this.settings.axis.x.show.value
+                                    },
+                                    selector: null
+                                });
+                                break;
+                        }
+                        ;
+                        return properties;
                     };
                     return Visual;
                 }());
