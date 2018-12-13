@@ -629,12 +629,31 @@ var powerbi;
                 var Visual = (function () {
                     function Visual(options) {
                         this.xPadding = 0.1; //padding b/w each bar
+                        this.tickSizeX = 1;
+                        this.tickSizeY = 1;
+                        this.settings = {
+                            axis: {
+                                x: {
+                                    padding: 50
+                                },
+                                y: {
+                                    padding: 50
+                                }
+                            },
+                            border: {
+                                top: 10
+                            }
+                        };
                         this.host = options.host; //hover over to see Type /make it a member var
                         this.svg = d3.select(options.element) //o.e is the main container for pbiviz
                             .append("svg")
                             .classed("bar-Chart", true); //true to write to the element
                         this.barGroup = this.svg.append("g")
                             .classed('bar-Group', true);
+                        this.xAxisGroup = this.svg.append("g")
+                            .classed("x-axis", true);
+                        this.yAxisGroup = this.svg.append("g")
+                            .classed("y-axis", true);
                         this.selectionManager = this.host.createSelectionManager();
                     }
                     Visual.prototype.update = function (options) {
@@ -649,10 +668,52 @@ var powerbi;
                         });
                         var yScale = d3.scale.linear() //asign the yScale
                             .domain([0, viewModel.maxValue]) //get viewModel max
-                            .range([height, 0]); //flip the axis /get options.viewport.height
+                            .range([height - this.settings.axis.x.padding, 0 + this.settings.border.top]); //flip the axis /get options.viewport.height, so the number does not get cut off
+                        //subtract 50px for x axis
+                        var yAxis = d3.svg.axis()
+                            .scale(yScale)
+                            .orient("left")
+                            .tickSize(this.tickSizeY);
+                        this.yAxisGroup
+                            .call(yAxis)
+                            .attr({
+                            transform: "translate(" + this.settings.axis.y.padding + ",0)"
+                        })
+                            .style({
+                            fill: "#777777"
+                        })
+                            .selectAll("text")
+                            .style({
+                            "text-anchor": "end",
+                            "font-size": "x-small"
+                        });
                         var xScale = d3.scale.ordinal() //asign the xScale
                             .domain(viewModel.dataPoints.map(function (d) { return d.category; })) //map category to range
-                            .rangeRoundBands([0, width], this.xPadding); //(boundaries, padding)
+                            .rangeRoundBands([this.settings.axis.y.padding, width], this.xPadding); //(boundaries, padding)
+                        var xAxis = d3.svg.axis()
+                            .scale(xScale)
+                            .orient("buttom")
+                            .tickSize(this.tickSizeX);
+                        //xAxis(this.xAxisGroup); //same as below
+                        this.xAxisGroup.call(xAxis); //w/this now we can transfor it with another function
+                        //            // this.yAxisGroup = this.svg.append("g")
+                        //     .classed("y-axis", true);
+                        this.xAxisGroup
+                            .call(xAxis)
+                            .attr({
+                            transform: "translate(0, " + (height - this.settings.axis.x.padding) + ")"
+                        })
+                            .style({
+                            fill: "#777777"
+                        })
+                            .selectAll("text")
+                            .attr({
+                            transform: "rotate(-35)"
+                        })
+                            .attr({
+                            "test-anchor": "end",
+                            "font-size": "x-small"
+                        });
                         var bars = this.barGroup //Bin html to data with svg
                             .selectAll(".bar")
                             .data(viewModel.dataPoints);
@@ -661,7 +722,7 @@ var powerbi;
                             .classed("bar", true);
                         bars.attr({
                             width: xScale.rangeBand(),
-                            height: function (d) { return height - yScale(d.value); },
+                            height: function (d) { return height - yScale(d.value) - _this.settings.axis.x.padding; },
                             y: function (d) { return yScale(d.value); },
                             x: function (d) { return xScale(d.category); } //get category
                         })

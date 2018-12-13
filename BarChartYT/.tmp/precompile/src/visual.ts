@@ -48,6 +48,24 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         private barGroup: d3.Selection<SVGElement>; //group all bars
         private xPadding: number = 0.1; //padding b/w each bar
         private selectionManager: ISelectionManager; //access any pbi selections
+        private xAxisGroup: d3.Selection<SVGElement>;
+        private tickSizeX: number = 1;
+        private tickSizeY: number = 1;
+        private yAxisGroup: d3.Selection<SVGElement>;
+
+        private settings = {
+            axis: {
+                x: {
+                    padding: 50
+                },
+                y: {
+                    padding: 50
+                }
+            },
+            border: {
+                top: 10
+            }
+        }
 
         constructor(options: VisualConstructorOptions) {
             this.host = options.host; //hover over to see Type /make it a member var
@@ -57,6 +75,12 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
             
             this.barGroup = this.svg.append("g")
                 .classed('bar-Group', true);
+
+            this.xAxisGroup = this.svg.append("g")
+                .classed("x-axis", true);
+
+            this.yAxisGroup = this.svg.append("g")
+                .classed("y-axis", true);
 
             this.selectionManager = this.host.createSelectionManager();
         
@@ -77,11 +101,58 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
 
             let yScale = d3.scale.linear() //asign the yScale
                 .domain([0, viewModel.maxValue]) //get viewModel max
-                .range([height, 0]); //flip the axis /get options.viewport.height
-       
+                .range([height - this.settings.axis.x.padding, 0 + this.settings.border.top]); //flip the axis /get options.viewport.height, so the number does not get cut off
+                                                                    //subtract 50px for x axis
+            let yAxis = d3.svg.axis()
+                .scale(yScale)
+                .orient("left")
+                .tickSize(this.tickSizeY);
+
+            this.yAxisGroup
+                .call(yAxis)
+                .attr({
+                    transform: "translate(" + this.settings.axis.y.padding + ",0)"
+                })
+                .style({
+                    fill: "#777777"
+                })
+                .selectAll("text")
+                .style({
+                    "text-anchor": "end",
+                    "font-size": "x-small"
+                });
+
             let xScale = d3.scale.ordinal() //asign the xScale
                 .domain(viewModel.dataPoints.map(d => d.category)) //map category to range
-                .rangeRoundBands([0, width], this.xPadding); //(boundaries, padding)
+                .rangeRoundBands([this.settings.axis.y.padding, width], this.xPadding); //(boundaries, padding)
+
+            let xAxis = d3.svg.axis()
+                .scale(xScale)
+                .orient("buttom")
+                .tickSize(this.tickSizeX);
+
+            //xAxis(this.xAxisGroup); //same as below
+            this.xAxisGroup.call(xAxis); //w/this now we can transfor it with another function
+
+//            // this.yAxisGroup = this.svg.append("g")
+            //     .classed("y-axis", true);
+
+            this.xAxisGroup
+                .call(xAxis)
+                .attr({
+                    transform: "translate(0, " + (height - this.settings.axis.x.padding) + ")"
+                })
+                .style({
+                    fill: "#777777"
+                })
+                .selectAll("text")
+                .attr({
+                    transform: "rotate(-35)"
+                })
+                .attr({
+                    "test-anchor": "end",
+                    "font-size": "x-small"
+                });
             
             let bars = this.barGroup //Bin html to data with svg
                 .selectAll(".bar")
@@ -93,7 +164,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
             
             bars.attr({
                     width: xScale.rangeBand(), //width of the bar
-                    height: d => height - yScale(d.value), //flip the yAxis
+                    height: d => height - yScale(d.value) - this.settings.axis.x.padding, //flip the yAxis
                     y: d => yScale(d.value), //get value
                     x: d => xScale(d.category) //get category
                 })
