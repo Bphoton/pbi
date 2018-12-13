@@ -31,6 +31,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         category: string;
         value: number;
         color: string;
+        identity: powerbi.visuals.ISelectionId;
     };
 
     //Container for the datapoints plus some extra data
@@ -44,6 +45,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         private svg: d3.Selection<SVGElement>; //live refference to an SVG element
         private barGroup: d3.Selection<SVGElement>; //group all bars
         private xPadding: number = 0.1; //padding b/w each bar
+        private selectionManager: ISelectionManager; //access any pbi selections
 
         constructor(options: VisualConstructorOptions) {
             this.host = options.host; //hover over to see Type /make it a member var
@@ -53,6 +55,8 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
             
             this.barGroup = this.svg.append("g")
                 .classed('bar-Group', true);
+
+            this.selectionManager = this.host.createSelectionManager();
         
         }
         @logExceptions()
@@ -94,7 +98,17 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                 .style({
                     fill: d => d.color
                 })
-                
+                .on("click", (d) => { //get the id of the selection
+                    this.selectionManager
+                    .select(d.identity, true) //true: for multiple selections
+                    .then(ids => {
+                        bars.style({ //check to see if the current id is selected then highlight 
+                            "fill-opacity": ids.length > 0 ? 
+                            d => ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5
+                            : 1.0 
+                        });
+                    });
+                }); //need to add ctrl click for multiple selections                                                
             bars.exit() //Remove the data
                 .remove();
         }
@@ -120,7 +134,10 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                 viewModel.dataPoints.push({ //push everyting to the viewModel
                     category: <string>categories.values[i], //since categories.value is of PrimitiveType we have to specify Type here again
                     value: <number>values.values[i],
-                    color: this.host.colorPalette.getColor(<string>categories.values[i]).value
+                    color: this.host.colorPalette.getColor(<string>categories.values[i]).value,
+                    identity: this.host.createSelectionIdBuilder()
+                        .withCategory(categories, i)
+                        .createSelectionId()
                 });
             }
             //from the viewModel get the max

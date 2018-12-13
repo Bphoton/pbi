@@ -635,8 +635,10 @@ var powerbi;
                             .classed("bar-Chart", true); //true to write to the element
                         this.barGroup = this.svg.append("g")
                             .classed('bar-Group', true);
+                        this.selectionManager = this.host.createSelectionManager();
                     }
                     Visual.prototype.update = function (options) {
+                        var _this = this;
                         console.log("Update: ", options);
                         var viewModel = this.getViewModel(options); //asign ViewModel
                         var width = options.viewport.width; //asign for container
@@ -665,7 +667,18 @@ var powerbi;
                         })
                             .style({
                             fill: function (d) { return d.color; }
-                        });
+                        })
+                            .on("click", function (d) {
+                            _this.selectionManager
+                                .select(d.identity, true) //true: for multiple selections
+                                .then(function (ids) {
+                                bars.style({
+                                    "fill-opacity": ids.length > 0 ?
+                                        function (d) { return ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5; }
+                                        : 1.0
+                                });
+                            });
+                        }); //need to add ctrl click for multiple selections                                                
                         bars.exit() //Remove the data
                             .remove();
                     };
@@ -688,7 +701,10 @@ var powerbi;
                             viewModel.dataPoints.push({
                                 category: categories.values[i],
                                 value: values.values[i],
-                                color: this.host.colorPalette.getColor(categories.values[i]).value
+                                color: this.host.colorPalette.getColor(categories.values[i]).value,
+                                identity: this.host.createSelectionIdBuilder()
+                                    .withCategory(categories, i)
+                                    .createSelectionId()
                             });
                         }
                         //from the viewModel get the max
