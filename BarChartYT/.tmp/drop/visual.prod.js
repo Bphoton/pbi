@@ -666,7 +666,8 @@ var powerbi;
                             x: function (d) { return xScale(d.category); } //get category
                         })
                             .style({
-                            fill: function (d) { return d.color; }
+                            fill: function (d) { return d.color; },
+                            "fill-opacity": function (d) { return viewModel.highlights ? d.highlighted ? 1.0 : 0.5 : 1.0; }
                         })
                             .on("click", function (d) {
                             _this.selectionManager
@@ -686,7 +687,8 @@ var powerbi;
                         var dv = options.dataViews; //get the data into a specific shape
                         var viewModel = {
                             dataPoints: [],
-                            maxValue: 0
+                            maxValue: 0,
+                            highlights: false
                         };
                         if (!dv //dont return anything untill all fields are filled in
                             || !dv[0].categorical
@@ -696,6 +698,7 @@ var powerbi;
                             return viewModel;
                         var categories = dv[0].categorical.categories[0]; //get category array /0 is for multiple ceires
                         var values = dv[0].categorical.values[0]; //0 is for multiple ceries
+                        var highlights = values.highlights; //optional, thus may or may not be defined
                         //make sure categories and values are the same legth
                         for (var i = 0, len = Math.max(categories.values.length, values.values.length); i < len; i++) {
                             viewModel.dataPoints.push({
@@ -704,11 +707,13 @@ var powerbi;
                                 color: this.host.colorPalette.getColor(categories.values[i]).value,
                                 identity: this.host.createSelectionIdBuilder()
                                     .withCategory(categories, i)
-                                    .createSelectionId()
+                                    .createSelectionId(),
+                                highlighted: highlights ? highlights[i] ? true : false : false
                             });
                         }
                         //from the viewModel get the max
                         viewModel.maxValue = d3.max(viewModel.dataPoints, function (d) { return d.value; });
+                        viewModel.highlights = viewModel.dataPoints.filter(function (d) { return d.highlighted; }).length > 0;
                         return viewModel;
                     };
                     return Visual;

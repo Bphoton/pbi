@@ -32,12 +32,14 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         value: number;
         color: string;
         identity: powerbi.visuals.ISelectionId;
+        highlighted: boolean;
     };
 
     //Container for the datapoints plus some extra data
     interface ViewModel { //separator b/t the code getting the data and render the data
         dataPoints: DataPoint[]; //DataPoint as a whole is Typed here
         maxValue: number;
+        highlights: boolean;
     };
 
     export class Visual implements IVisual {
@@ -96,7 +98,8 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                     x: d => xScale(d.category) //get category
                 })
                 .style({
-                    fill: d => d.color
+                    fill: d => d.color,
+                    "fill-opacity": d => viewModel.highlights ? d.highlighted ? 1.0 : 0.5 : 1.0
                 })
                 .on("click", (d) => { //get the id of the selection
                     this.selectionManager
@@ -117,7 +120,8 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
 
             let viewModel: ViewModel = { //init viewModel /init something even if there is nothign there
                 dataPoints: [],
-                maxValue: 0
+                maxValue: 0,
+                highlights: false 
             };
             if (!dv //dont return anything untill all fields are filled in
                 || !dv[0].categorical
@@ -128,6 +132,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
            
             let categories = dv[0].categorical.categories[0]; //get category array /0 is for multiple ceires
             let values = dv[0].categorical.values[0]; //0 is for multiple ceries
+            let highlights = values.highlights; //optional, thus may or may not be defined
 
             //make sure categories and values are the same legth
             for (let i = 0, len = Math.max(categories.values.length, values.values.length); i < len; i++) { //loop through everything
@@ -137,11 +142,13 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                     color: this.host.colorPalette.getColor(<string>categories.values[i]).value,
                     identity: this.host.createSelectionIdBuilder()
                         .withCategory(categories, i)
-                        .createSelectionId()
+                        .createSelectionId(),
+                    highlighted: highlights ? highlights[i] ? true : false : false
                 });
             }
             //from the viewModel get the max
             viewModel.maxValue = d3.max(viewModel.dataPoints, d => d.value);
+            viewModel.highlights = viewModel.dataPoints.filter(d => d.highlighted).length > 0;
 
             return viewModel;
         }
