@@ -54,32 +54,34 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         private tickSizeY: number = 1;
         private yAxisGroup: d3.Selection<SVGElement>;
 
-        private settings = {
-            axis: {
-                x: {
-                    padding: {
-                        default: 50,
-                        value: 50
-                    },
-                    show: {
-                        default: true,
-                        value: true
-                    }
-                },
-                y: {
-                    padding: {
-                        default: 50,
-                        value: 50
-                    }
-                }
-            },
-            border: {
-                top: {
-                    default: 10,
-                    value: 10
-                }
-            }
-        }
+        private settings: VisualSettings = new VisualSettings()
+        
+        // {
+        //     axis: {
+        //         x: {
+        //             padding: {
+        //                 default: 50,
+        //                 value: 50
+        //             },
+        //             show: {
+        //                 default: true,
+        //                 value: true
+        //             }
+        //         },
+        //         y: {
+        //             padding: {
+        //                 default: 50,
+        //                 value: 50
+        //             }
+        //         }
+        //     },
+        //     border: {
+        //         top: {
+        //             default: 10,
+        //             value: 10
+        //         }
+        //     }
+        // }
 
         constructor(options: VisualConstructorOptions) {
             this.host = options.host; //hover over to see Type /make it a member var
@@ -101,8 +103,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
         }
         @logExceptions()
         public update(options: VisualUpdateOptions) {
-console.log(`Update: `, options);
-            this.updateSettings(options);
+            this.settings = this.updateSettings(options);
 
             let viewModel = this.getViewModel(options); //asign ViewModel
 
@@ -114,11 +115,17 @@ console.log(`Update: `, options);
                 height: height
             });
 
-            let xAxisPadding = this.settings.axis.x.show.value ? this.settings.axis.x.padding.value : 0;
+            let { 
+                xAxis: xAxisSettings, 
+                yAxis: yAxisSettings,
+                chart: chartSettings
+            } = this.settings
+
+            let xAxisPadding = xAxisSettings.show ? xAxisSettings.padding : 0;
 
             let yScale = d3.scale.linear() //asign the yScale
                 .domain([0, viewModel.maxValue]) //get viewModel max
-                .range([height - xAxisPadding, 0 + this.settings.border.top.value]); //flip the axis /get options.viewport.height, so the number does not get cut off
+                .range([height - xAxisPadding, chartSettings.topMargin]); //flip the axis /get options.viewport.height, so the number does not get cut off
 
             let yAxis = d3.svg.axis()
                 .scale(yScale)
@@ -128,7 +135,7 @@ console.log(`Update: `, options);
             this.yAxisGroup
                 .call(yAxis)
                 .attr({
-                    transform: "translate(" + this.settings.axis.y.padding + ",0)"
+                    transform: "translate(" + yAxisSettings.padding + ",0)"
                 })
                 .style({
                     fill: "#777777"
@@ -136,12 +143,12 @@ console.log(`Update: `, options);
                 .selectAll("text")
                 .style({
                     "text-anchor": "end",
-                    "font-size": "x-small"
+                    "font-size": `${chartSettings.labelFontSize}px`
                 });
 
             let xScale = d3.scale.ordinal() //asign the xScale
                 .domain(viewModel.dataPoints.map(d => d.category)) //map category to range
-                .rangeRoundBands([this.settings.axis.y.padding.value, width], this.xPadding); //(boundaries, padding)
+                .rangeRoundBands([ yAxisSettings.padding, width], this.xPadding); //(boundaries, padding)
 
             let xAxis = d3.svg.axis()
                 .scale(xScale)
@@ -179,6 +186,8 @@ console.log(`Update: `, options);
                 .append("rect")
                 .classed("bar", true);
 
+            const isHighlighted = (d: DataPoint) : number => d.highlighted === true ? 1.0 : 0.5 
+
             bars.attr({
                 width: xScale.rangeBand(), //width of the bar
                 height: d => height - yScale(d.value) - xAxisPadding, //flip the yAxis
@@ -187,7 +196,9 @@ console.log(`Update: `, options);
             })
                 .style({
                     fill: d => d.color,
-                    "fill-opacity": d => viewModel.highlights ? d.highlighted ? 1.0 : 0.5 : 1.0
+                    "fill-opacity": d => viewModel.highlights === true 
+                        ? isHighlighted(d)
+                        : 1.0 //???
                 })
                 .on("click", (d) => { //get the id of the selection
                     this.selectionManager
@@ -195,8 +206,7 @@ console.log(`Update: `, options);
                         .then(ids => {
                             bars.style({ //check to see if the current id is selected then highlight 
                                 "fill-opacity": ids.length > 0 ?
-                                    d => ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5
-                                    : 1.0
+                                    d => ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5 : 1.0 //???
                             });
                         });
                 }); //need to add ctrl click for multiple selections                                                
@@ -204,13 +214,15 @@ console.log(`Update: `, options);
                 .remove();
         }
 
-        private updateSettings(options: VisualUpdateOptions) {
-            this.settings.axis.x.show.value = DataViewObjects.getValue(
-                options.dataViews[0].metadata.objects, {
-                    objectName: "xAxis",
-                    propertyName: "show"
-                },
-                this.settings.axis.x.show.default);
+        private updateSettings(options: VisualUpdateOptions) : VisualSettings {
+            return VisualSettings.parse(options.dataViews[0]) as VisualSettings;
+
+            // this.settings.axis.x.show.value = DataViewObjects.getValue(
+            //     options.dataViews[0].metadata.objects, {
+            //         objectName: "xAxis",
+            //         propertyName: "show"
+            //     },
+            //     this.settings.axis.x.show.default);
         }
 
         private getViewModel(options: VisualUpdateOptions): ViewModel { //get data dynamically from the user
@@ -241,7 +253,7 @@ console.log(`Update: `, options);
                     identity: this.host.createSelectionIdBuilder()
                         .withCategory(categories, i)
                         .createSelectionId(),
-                    highlighted: highlights ? highlights[i] ? true : false : false
+                    highlighted: highlights ? highlights[i] ? true : false : false //???
                 });
             }
             //from the viewModel get the max
@@ -254,17 +266,20 @@ console.log(`Update: `, options);
             VisualObjectInstanceEnumeration {
             
             let propertyGroupName = options.objectName;
-            let properties: VisualObjectInstance[] = [];
+            let properties: VisualObjectInstanceEnumeration = [];
                 switch (propertyGroupName) {
-                case "xAxis":
-                    properties.push({
-                        objectName: propertyGroupName,
-                        properties: {
-                            show: this.settings.axis.x.show.value
-                        },
-                        selector: null
-                    });
-                    break;
+                // case "xAxis":
+                //     properties.push({
+                //         objectName: propertyGroupName,
+                //         properties: {
+                //             show: this.settings.axis.x.show.value
+                //         },
+                //         selector: null
+                //     });
+                //     break;
+                default: {
+                    properties = VisualSettings.enumerateObjectInstances(this.settings || VisualSettings.getDefault(), options)
+                }
             };
             return properties;
         }

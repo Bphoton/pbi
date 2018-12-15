@@ -30,7 +30,25 @@ module powerbi.extensibility.visual {
 
     export class VisualSettings extends DataViewObjectsParser {
       public dataPoint: dataPointSettings = new dataPointSettings();
-      }
+      public xAxis: xAxisSettings = new xAxisSettings();
+      public yAxis: yAxisSettings = new yAxisSettings();
+      public chart: chartSettings = new chartSettings();
+    }
+
+    export class xAxisSettings {
+      public show = true
+      public padding = 50
+
+    }
+
+    export class yAxisSettings {
+      public padding = 50
+    }
+
+    export class chartSettings {
+      public topMargin = 50
+      public labelFontSize = 11
+    }
 
     export class dataPointSettings {
      // Default color
@@ -44,5 +62,6 @@ module powerbi.extensibility.visual {
      // Text Size
       public fontSize: number = 12;
      }
+
 
 }

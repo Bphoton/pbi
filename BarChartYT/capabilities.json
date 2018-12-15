@@ -2,12 +2,12 @@
     "supportsHighlight": true,
     "dataRoles": [
         {
-            "displayName": "Axis",
+            "displayName": "Categpry",
             "name": "category",
             "kind": "Grouping"
         },
         {
-            "displayName": "Values",
+            "displayName": "Value",
             "name": "measure",
             "kind": "Measure"
         }
@@ -20,6 +20,34 @@
                     "displayName": "Show X Axis",
                     "type": {
                         "bool": true
+                    }
+                },
+                "padding": {
+                    "displayName": "Padding",
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "yAxis":{
+            "displayName": "Y Axis",
+            "properties": {
+                "padding":{
+                    "displayName": "Padding",
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "chart":{
+            "displayName": "Chart Options",
+            "properties": {
+                "topMargin": {
+                    "displayName": "Top Margin",
+                    "type": {
+                        "numeric": true
                     }
                 }
             }

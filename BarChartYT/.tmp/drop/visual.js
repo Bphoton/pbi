@@ -565,11 +565,37 @@ var powerbi;
                     function VisualSettings() {
                         var _this = _super !== null && _super.apply(this, arguments) || this;
                         _this.dataPoint = new dataPointSettings();
+                        _this.xAxis = new xAxisSettings();
+                        _this.yAxis = new yAxisSettings();
+                        _this.chart = new chartSettings();
                         return _this;
                     }
                     return VisualSettings;
                 }(DataViewObjectsParser));
                 barChartYT88854E76F5154CE9A918A731AFDE537F.VisualSettings = VisualSettings;
+                var xAxisSettings = (function () {
+                    function xAxisSettings() {
+                        this.show = true;
+                        this.padding = 50;
+                    }
+                    return xAxisSettings;
+                }());
+                barChartYT88854E76F5154CE9A918A731AFDE537F.xAxisSettings = xAxisSettings;
+                var yAxisSettings = (function () {
+                    function yAxisSettings() {
+                        this.padding = 50;
+                    }
+                    return yAxisSettings;
+                }());
+                barChartYT88854E76F5154CE9A918A731AFDE537F.yAxisSettings = yAxisSettings;
+                var chartSettings = (function () {
+                    function chartSettings() {
+                        this.topMargin = 50;
+                        this.labelFontSize = 11;
+                    }
+                    return chartSettings;
+                }());
+                barChartYT88854E76F5154CE9A918A731AFDE537F.chartSettings = chartSettings;
                 var dataPointSettings = (function () {
                     function dataPointSettings() {
                         // Default color
@@ -628,36 +654,37 @@ var powerbi;
                 ;
                 ;
                 var Visual = (function () {
+                    // {
+                    //     axis: {
+                    //         x: {
+                    //             padding: {
+                    //                 default: 50,
+                    //                 value: 50
+                    //             },
+                    //             show: {
+                    //                 default: true,
+                    //                 value: true
+                    //             }
+                    //         },
+                    //         y: {
+                    //             padding: {
+                    //                 default: 50,
+                    //                 value: 50
+                    //             }
+                    //         }
+                    //     },
+                    //     border: {
+                    //         top: {
+                    //             default: 10,
+                    //             value: 10
+                    //         }
+                    //     }
+                    // }
                     function Visual(options) {
                         this.xPadding = 0.1; //padding b/w each bar
                         this.tickSizeX = 1;
                         this.tickSizeY = 1;
-                        this.settings = {
-                            axis: {
-                                x: {
-                                    padding: {
-                                        default: 50,
-                                        value: 50
-                                    },
-                                    show: {
-                                        default: true,
-                                        value: true
-                                    }
-                                },
-                                y: {
-                                    padding: {
-                                        default: 50,
-                                        value: 50
-                                    }
-                                }
-                            },
-                            border: {
-                                top: {
-                                    default: 10,
-                                    value: 10
-                                }
-                            }
-                        };
+                        this.settings = new barChartYT88854E76F5154CE9A918A731AFDE537F.VisualSettings();
                         this.host = options.host; //hover over to see Type /make it a member var
                         this.svg = d3.select(options.element) //o.e is the main container for pbiviz
                             .append("svg")
@@ -672,8 +699,7 @@ var powerbi;
                     }
                     Visual.prototype.update = function (options) {
                         var _this = this;
-                        console.log("Update: ", options);
-                        this.updateSettings(options);
+                        this.settings = this.updateSettings(options);
                         var viewModel = this.getViewModel(options); //asign ViewModel
                         var width = options.viewport.width; //asign for container
                         var height = options.viewport.height;
@@ -681,10 +707,11 @@ var powerbi;
                             width: width,
                             height: height
                         });
-                        var xAxisPadding = this.settings.axis.x.show.value ? this.settings.axis.x.padding.value : 0;
+                        var _a = this.settings, xAxisSettings = _a.xAxis, yAxisSettings = _a.yAxis, chartSettings = _a.chart;
+                        var xAxisPadding = xAxisSettings.show ? xAxisSettings.padding : 0;
                         var yScale = d3.scale.linear() //asign the yScale
                             .domain([0, viewModel.maxValue]) //get viewModel max
-                            .range([height - xAxisPadding, 0 + this.settings.border.top.value]); //flip the axis /get options.viewport.height, so the number does not get cut off
+                            .range([height - xAxisPadding, chartSettings.topMargin]); //flip the axis /get options.viewport.height, so the number does not get cut off
                         var yAxis = d3.svg.axis()
                             .scale(yScale)
                             .orient("left")
@@ -692,7 +719,7 @@ var powerbi;
                         this.yAxisGroup
                             .call(yAxis)
                             .attr({
-                            transform: "translate(" + this.settings.axis.y.padding + ",0)"
+                            transform: "translate(" + yAxisSettings.padding + ",0)"
                         })
                             .style({
                             fill: "#777777"
@@ -700,11 +727,11 @@ var powerbi;
                             .selectAll("text")
                             .style({
                             "text-anchor": "end",
-                            "font-size": "x-small"
+                            "font-size": chartSettings.labelFontSize + "px"
                         });
                         var xScale = d3.scale.ordinal() //asign the xScale
                             .domain(viewModel.dataPoints.map(function (d) { return d.category; })) //map category to range
-                            .rangeRoundBands([this.settings.axis.y.padding.value, width], this.xPadding); //(boundaries, padding)
+                            .rangeRoundBands([yAxisSettings.padding, width], this.xPadding); //(boundaries, padding)
                         var xAxis = d3.svg.axis()
                             .scale(xScale)
                             .orient("buttom")
@@ -735,6 +762,7 @@ var powerbi;
                         bars.enter() //Enter the data
                             .append("rect")
                             .classed("bar", true);
+                        var isHighlighted = function (d) { return d.highlighted === true ? 1.0 : 0.5; };
                         bars.attr({
                             width: xScale.rangeBand(),
                             height: function (d) { return height - yScale(d.value) - xAxisPadding; },
@@ -743,7 +771,9 @@ var powerbi;
                         })
                             .style({
                             fill: function (d) { return d.color; },
-                            "fill-opacity": function (d) { return viewModel.highlights ? d.highlighted ? 1.0 : 0.5 : 1.0; }
+                            "fill-opacity": function (d) { return viewModel.highlights === true
+                                ? isHighlighted(d)
+                                : 1.0; } //???
                         })
                             .on("click", function (d) {
                             _this.selectionManager
@@ -751,8 +781,7 @@ var powerbi;
                                 .then(function (ids) {
                                 bars.style({
                                     "fill-opacity": ids.length > 0 ?
-                                        function (d) { return ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5; }
-                                        : 1.0
+                                        function (d) { return ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5; } : 1.0 //???
                                 });
                             });
                         }); //need to add ctrl click for multiple selections                                                
@@ -760,10 +789,13 @@ var powerbi;
                             .remove();
                     };
                     Visual.prototype.updateSettings = function (options) {
-                        this.settings.axis.x.show.value = DataViewObjects.getValue(options.dataViews[0].metadata.objects, {
-                            objectName: "xAxis",
-                            propertyName: "show"
-                        }, this.settings.axis.x.show.default);
+                        return barChartYT88854E76F5154CE9A918A731AFDE537F.VisualSettings.parse(options.dataViews[0]);
+                        // this.settings.axis.x.show.value = DataViewObjects.getValue(
+                        //     options.dataViews[0].metadata.objects, {
+                        //         objectName: "xAxis",
+                        //         propertyName: "show"
+                        //     },
+                        //     this.settings.axis.x.show.default);
                     };
                     Visual.prototype.getViewModel = function (options) {
                         var dv = options.dataViews; //get the data into a specific shape
@@ -790,7 +822,7 @@ var powerbi;
                                 identity: this.host.createSelectionIdBuilder()
                                     .withCategory(categories, i)
                                     .createSelectionId(),
-                                highlighted: highlights ? highlights[i] ? true : false : false
+                                highlighted: highlights ? highlights[i] ? true : false : false //???
                             });
                         }
                         //from the viewModel get the max
@@ -802,15 +834,18 @@ var powerbi;
                         var propertyGroupName = options.objectName;
                         var properties = [];
                         switch (propertyGroupName) {
-                            case "xAxis":
-                                properties.push({
-                                    objectName: propertyGroupName,
-                                    properties: {
-                                        show: this.settings.axis.x.show.value
-                                    },
-                                    selector: null
-                                });
-                                break;
+                            // case "xAxis":
+                            //     properties.push({
+                            //         objectName: propertyGroupName,
+                            //         properties: {
+                            //             show: this.settings.axis.x.show.value
+                            //         },
+                            //         selector: null
+                            //     });
+                            //     break;
+                            default: {
+                                properties = barChartYT88854E76F5154CE9A918A731AFDE537F.VisualSettings.enumerateObjectInstances(this.settings || barChartYT88854E76F5154CE9A918A731AFDE537F.VisualSettings.getDefault(), options);
+                            }
                         }
                         ;
                         return properties;
