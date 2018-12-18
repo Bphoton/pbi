@@ -10,9 +10,39 @@
             "displayName": "Value",
             "name": "measure",
             "kind": "Measure"
+        },
+        {
+            "displayName": "Color",
+            "name": "color",
+            "kind": "Measure"
         }
     ],
     "objects": {
+        "color": {
+            "displayName": "Color",
+            "properties": {
+                "colorPickedMax": {
+                    "displayName": "Color Max",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "colorPickedMin": {
+                    "displayName": "Color Min",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "xAxis": {
             "displayName": "X Axis",
             "properties": {
@@ -116,7 +146,9 @@
                         "in": "category"
                     },
                     "dataReductionAlgorithm": {
-                        "top": {}
+                        "top": {
+                            "count": 25
+                        }
                     }
                 },
                 "values": {
@@ -124,6 +156,11 @@
                         {
                             "bind": {
                                 "to": "measure"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "color"
                             }
                         }
                     ]

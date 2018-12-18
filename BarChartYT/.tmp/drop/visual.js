@@ -568,6 +568,7 @@ var powerbi;
                         _this.xAxis = new xAxisSettings();
                         _this.yAxis = new yAxisSettings();
                         _this.chart = new chartSettings();
+                        _this.color = new colorSettings();
                         return _this;
                     }
                     return VisualSettings;
@@ -583,11 +584,19 @@ var powerbi;
                 barChartYT88854E76F5154CE9A918A731AFDE537F.xAxisSettings = xAxisSettings;
                 var yAxisSettings = (function () {
                     function yAxisSettings() {
-                        this.padding = 50;
+                        this.padding = 80;
                     }
                     return yAxisSettings;
                 }());
                 barChartYT88854E76F5154CE9A918A731AFDE537F.yAxisSettings = yAxisSettings;
+                var colorSettings = (function () {
+                    function colorSettings() {
+                        this.colorPickedMax = '#0000ff';
+                        this.colorPickedMin = '#999999';
+                    }
+                    return colorSettings;
+                }());
+                barChartYT88854E76F5154CE9A918A731AFDE537F.colorSettings = colorSettings;
                 var chartSettings = (function () {
                     function chartSettings() {
                         this.topMargin = 50;
@@ -707,10 +716,11 @@ var powerbi;
                             width: width,
                             height: height
                         });
-                        var _a = this.settings, xAxisSettings = _a.xAxis, yAxisSettings = _a.yAxis, chartSettings = _a.chart;
+                        var _a = this.settings, //??? do I need this here
+                        xAxisSettings = _a.xAxis, yAxisSettings = _a.yAxis, chartSettings = _a.chart;
                         var xAxisPadding = xAxisSettings.show ? xAxisSettings.padding : 0;
                         var yScale = d3.scale.linear() //asign the yScale
-                            .domain([0, viewModel.maxValue]) //get viewModel max
+                            .domain([0, viewModel.ranges.measure.max]) //get viewModel max
                             .range([height - xAxisPadding, chartSettings.topMargin]); //flip the axis /get options.viewport.height, so the number does not get cut off
                         var yAxis = d3.svg.axis()
                             .scale(yScale)
@@ -740,17 +750,20 @@ var powerbi;
                         this.xAxisGroup.call(xAxis); //w/this now we can transfor it with another function
                         //            // this.yAxisGroup = this.svg.append("g")
                         //     .classed("y-axis", true);
+                        var rotateText = true;
                         this.xAxisGroup
                             .call(xAxis)
                             .attr({
-                            transform: "translate(0, " + (height - xAxisPadding) + ")"
+                            transform: "translate(0, " + (height - xAxisPadding) + ")",
                         })
                             .style({
                             fill: "#777777"
                         })
                             .selectAll("text")
                             .attr({
-                            transform: "rotate(-35)"
+                            transform: function (d) { return rotateText === true
+                                ? "rotate(-35)"
+                                : "rotate(0)"; }
                         })
                             .attr({
                             "test-anchor": "end",
@@ -758,7 +771,7 @@ var powerbi;
                         });
                         var bars = this.barGroup //Bin html to data with svg
                             .selectAll(".bar")
-                            .data(viewModel.dataPoints);
+                            .data(viewModel.dataPoints, function (d) { return d.category; });
                         bars.enter() //Enter the data
                             .append("rect")
                             .classed("bar", true);
@@ -787,6 +800,11 @@ var powerbi;
                         }); //need to add ctrl click for multiple selections                                                
                         bars.exit() //Remove the data
                             .remove();
+                        //???            let dataViews = undefined
+                        //???
+                        // if(dataViews && dataViews[0] && dataViews[0].categorical && dataViews[0].categorical.values){
+                        //     console.log('Has the stuffs')
+                        // }
                     };
                     Visual.prototype.updateSettings = function (options) {
                         return barChartYT88854E76F5154CE9A918A731AFDE537F.VisualSettings.parse(options.dataViews[0]);
@@ -799,35 +817,135 @@ var powerbi;
                     };
                     Visual.prototype.getViewModel = function (options) {
                         var dv = options.dataViews; //get the data into a specific shape
-                        var viewModel = {
-                            dataPoints: [],
-                            maxValue: 0,
-                            highlights: false
-                        };
                         if (!dv //dont return anything untill all fields are filled in
+                            || !dv[0]
                             || !dv[0].categorical
                             || !dv[0].categorical.categories
                             || !dv[0].categorical.categories[0].source
                             || !dv[0].categorical.values)
-                            return viewModel;
-                        var categories = dv[0].categorical.categories[0]; //get category array /0 is for multiple ceires
-                        var values = dv[0].categorical.values[0]; //0 is for multiple ceries
-                        var highlights = values.highlights; //optional, thus may or may not be defined
+                            return {
+                                dataPoints: [],
+                                ranges: { measure: { min: 0, max: 0 } },
+                                highlights: false
+                            };
+                        var categories = dv[0].categorical.categories; //get category array /0 is for multiple ceires
+                        var category = categories[0];
+                        var values = dv[0].categorical.values; //0 is for multiple ceries
+                        var measure = values[0];
+                        var color = values[1];
+                        var highlights = measure.highlights; //optional, thus may or may not be defined
+                        var viewModel = {
+                            dataPoints: [],
+                            ranges: {
+                                measure: {
+                                    min: Math.min.apply(Math, measure.values),
+                                    max: Math.max.apply(Math, measure.values)
+                                }
+                            },
+                            highlights: false
+                        };
+                        var hasColorValues = color && color.values !== undefined;
+                        if (hasColorValues) {
+                            viewModel.ranges.color = {
+                                min: Math.min.apply(Math, color.values),
+                                max: Math.max.apply(Math, color.values)
+                            };
+                            // viewModel.ranges = { ...viewModel.ranges, 
+                            //     color: {
+                            //         min: Math.min(...(<number[]>color.values)),
+                            //         max: Math.max(...(<number[]>color.values))
+                            //     }
+                            // }
+                        }
+                        var colorSettings = this.settings.color;
+                        // let categories2, values2
+                        // dv[0] = undefined
+                        // try {
+                        //     let { categories, values } = dv[0].categorical
+                        //     if(!categories[0].source){
+                        //         throw new Error('No source in first category')
+                        //     }
+                        //     categories2 = categories
+                        //     values2 = values
+                        // } catch(e){
+                        //     console.error('Data view is incomplete, no columns found.')
+                        //     // return viewModel
+                        // }
+                        // console.log('Error is done, continuing')
+                        var colorRange = viewModel.ranges.color !== undefined
+                            ? viewModel.ranges.color
+                            : viewModel.ranges.measure;
+                        //d3Color
+                        var colorScale = d3.scale.linear()
+                            .domain([0, colorRange.max])
+                            .range([colorSettings.colorPickedMin, colorSettings.colorPickedMax]);
                         //make sure categories and values are the same legth
-                        for (var i = 0, len = Math.max(categories.values.length, values.values.length); i < len; i++) {
+                        for (var i = 0, len = Math.max(category.values.length, measure.values.length); i < len; i++) {
                             viewModel.dataPoints.push({
-                                category: categories.values[i],
-                                value: values.values[i],
-                                color: this.host.colorPalette.getColor(categories.values[i]).value,
+                                category: category.values[i],
+                                value: measure.values[i],
+                                color: colorScale(((color && color.values && color.values[i]) || measure.values[i])),
                                 identity: this.host.createSelectionIdBuilder()
-                                    .withCategory(categories, i)
+                                    .withCategory(category, i)
                                     .createSelectionId(),
-                                highlighted: highlights ? highlights[i] ? true : false : false //???
+                                highlighted: highlights !== undefined
+                                    ? highlights[i] !== undefined
+                                        ? true
+                                        : false
+                                    : false
                             });
                         }
                         //from the viewModel get the max
-                        viewModel.maxValue = d3.max(viewModel.dataPoints, function (d) { return d.value; });
+                        //viewModel.maxValue = d3.max(viewModel.dataPoints, d => d.value);
                         viewModel.highlights = viewModel.dataPoints.filter(function (d) { return d.highlighted; }).length > 0;
+                        var getSortDataPointsByPropertyCallback = function (propertyName) {
+                            return function (a, b) {
+                                return a[propertyName] > b[propertyName]
+                                    ? 1
+                                    : a[propertyName] === b[propertyName]
+                                        ? 0
+                                        : -1;
+                            };
+                        };
+                        // let addWithCallback = function(
+                        //     a: number, 
+                        //     b: number, 
+                        //     onDoneAdding: (sum: number) => void, 
+                        //     onError: (err: Error) => void
+                        // ) : void{
+                        //     let sum: number
+                        //     try {
+                        //         if(typeof a !== 'number' || typeof b !== 'number'){
+                        //             throw new Error('One of your parameters is not a number')
+                        //         }
+                        //         sum = a + b
+                        //         onDoneAdding(sum)
+                        //     } catch(err){
+                        //         onError(err)
+                        //     }
+                        // }
+                        // addWithCallback(1, 2, 
+                        //     sum => {
+                        //         console.log(`The sum is ${sum}`)
+                        //     },
+                        //     err => {
+                        //         console.error(err)
+                        //     })
+                        var sortDataPointsCallback;
+                        var shouldReverse = true;
+                        if (hasColorValues) {
+                            sortDataPointsCallback = getSortDataPointsByPropertyCallback('value');
+                        }
+                        else {
+                            sortDataPointsCallback = getSortDataPointsByPropertyCallback('color');
+                        }
+                        viewModel.dataPoints = viewModel.dataPoints.sort(sortDataPointsCallback);
+                        if (shouldReverse)
+                            viewModel.dataPoints = viewModel.dataPoints.reverse();
+                        //reduce number of datapoints
+                        if (viewModel.dataPoints.length > 25) {
+                            viewModel.dataPoints = viewModel.dataPoints.slice(0, 25);
+                        }
                         return viewModel;
                     };
                     Visual.prototype.enumerateObjectInstances = function (options) {
@@ -858,6 +976,12 @@ var powerbi;
                     __metadata("design:paramtypes", [Object]),
                     __metadata("design:returntype", void 0)
                 ], Visual.prototype, "update", null);
+                __decorate([
+                    logExceptions(),
+                    __metadata("design:type", Function),
+                    __metadata("design:paramtypes", [Object]),
+                    __metadata("design:returntype", Object)
+                ], Visual.prototype, "getViewModel", null);
                 barChartYT88854E76F5154CE9A918A731AFDE537F.Visual = Visual;
                 // Check for errors
                 function logExceptions() {
@@ -865,7 +989,7 @@ var powerbi;
                         return {
                             value: function () {
                                 try {
-                                    return descriptor.value.apply(this, arguments);
+                                    return descriptor && descriptor.value && descriptor.value.apply(this, arguments);
                                 }
                                 catch (e) {
                                     console.error(e);

@@ -33,6 +33,7 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
       public xAxis: xAxisSettings = new xAxisSettings();
       public yAxis: yAxisSettings = new yAxisSettings();
       public chart: chartSettings = new chartSettings();
+      public color: colorSettings = new colorSettings();
     }
 
     export class xAxisSettings {
@@ -42,7 +43,12 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
     }
 
     export class yAxisSettings {
-      public padding = 50
+      public padding = 80
+    }
+
+    export class colorSettings {
+      public colorPickedMax = '#0000ff'
+      public colorPickedMin = '#999999'
     }
 
     export class chartSettings {
