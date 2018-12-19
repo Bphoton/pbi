@@ -24,6 +24,8 @@
  *  THE SOFTWARE.
  */
 import DataViewObjects = powerbi.extensibility.utils.dataview.DataViewObjects;
+import TextProperties = powerbi.extensibility.utils.formatting.TextProperties;
+import textMeasurementService = powerbi.extensibility.utils.formatting.textMeasurementService;
 
 module powerbi.extensibility.visual {
     "use strict";
@@ -56,6 +58,7 @@ module powerbi.extensibility.visual {
     export class Visual implements IVisual {
         private host: IVisualHost; //access the api
         private svg: d3.Selection<SVGElement>; //live refference to an SVG element
+        private barTextGroup: d3.Selection<SVGElement>;
         private barGroup: d3.Selection<SVGElement>; //group all bars
         private xPadding: number = 0.1; //padding b/w each bar
         private selectionManager: ISelectionManager; //access any pbi selections
@@ -97,6 +100,9 @@ module powerbi.extensibility.visual {
             this.svg = d3.select(options.element) //o.e is the main container for pbiviz
                 .append("svg")
                 .classed("bar-Chart", true); //true to write to the element
+
+            this.barTextGroup = this.svg.append("g")
+                .classed('bar-Text-Group', true );
 
             this.barGroup = this.svg.append("g")
                 .classed('bar-Group', true);
@@ -147,12 +153,13 @@ module powerbi.extensibility.visual {
                     transform: "translate(" + yAxisSettings.padding + ",0)"
                 })
                 .style({
-                    fill: "#777777"
+                    fill: "#000"
                 })
                 .selectAll("text")
                 .style({
                     "text-anchor": "end",
-                    "font-size": `${chartSettings.labelFontSize}px`
+                    "font-size": `${chartSettings.labelFontSize}px`,
+                    
                 });
 
             let xScale = d3.scale.ordinal() //asign the xScale
@@ -173,56 +180,123 @@ module powerbi.extensibility.visual {
             let rotateText: boolean = true;
             this.xAxisGroup
                 .call(xAxis)
+
+            let textProperties: TextProperties = {
+                fontFamily: "sans-serif",
+                fontSize: "24px"
+            };
+
+            this.xAxisGroup
                 .attr({
                     transform: `translate(0, ${height - xAxisPadding})`,
                 })
                 .style({
-                    fill: "#777777"
+                    fill: "#000"
                 })
                 .selectAll("text")
-                .attr({
-                    transform: d => rotateText === true 
-                    ? "rotate(-35)"
-                    : "rotate(0)" 
+                .each(function(text: string, index: number){
+                    let textElement: SVGTextElement = this
+                    let $text: d3.Selection<SVGTextElement> = d3.select(textElement)
+                    if(index % 2 === 0){
+                        $text.style("display", "none")
+                    } else {
+                        $text.style("display", "block")
+                    }
+
+                    let localTextProps: TextProperties = textMeasurementService.getMeasurementProperties(textElement)
+                   
+                    let { width, height } = textMeasurementService.measureSvgTextRect(localTextProps, text)
+                    
+                    if(width > 120){
+                        let newText = textMeasurementService.getTailoredTextOrDefault(localTextProps, 120);
+                        $text.text(newText)
+                    }
+                    $text.attr({
+                        "text-anchor": null,
+                        transform: rotateText === true 
+                            ? "rotate(-15)"
+                            : "rotate(0)" 
+                    })
+                    .style({
+                        "dominant-baseline": "baseline",
+                        "text-anchor": "end", 
+                        "font-size": "12px"
+                    })
                 })
-                .attr({
-                    "test-anchor": "end", ///??? why is this anchor not working
-                    "font-size": "x-small"
-                });
-
-            let bars = this.barGroup //Bin html to data with svg
+             
+            let bars$update: d3.selection.Update<DataPoint> = this.barGroup //Bin html to data with svg
                 .selectAll(".bar")
-                .data(viewModel.dataPoints, d => d.category);
+                .data(viewModel.dataPoints, d => d.category)
+                
 
-            bars.enter() //Enter the data
-                .append("rect")
-                .classed("bar", true);
+            let bars$enter: d3.selection.Enter<DataPoint> = bars$update.enter() //Enter the data
+              
+            // Creating container g
+            let bars$enter$g = bars$enter
+                .append("g")
+                .classed("bar", true)
+
+            // Creating rect within g
+            bars$enter$g
+                .append('rect')
+                .classed('bar__rect', true)
+
+            // Creating text within g
+
+            bars$enter$g
+                .append('text')
+                .classed('bar__text', true)
 
             const isHighlighted = (d: DataPoint) : number => d.highlighted === true ? 1.0 : 0.5 
 
-            bars.attr({
-                width: xScale.rangeBand(), //width of the bar
-                height: d => height - yScale(d.value) - xAxisPadding, //flip the yAxis
-                y: d => yScale(d.value), //get value
-                x: d => xScale(d.category) //get category
-            })
-                .style({
-                    fill: d => d.color,
-                    "fill-opacity": d => viewModel.highlights === true 
-                        ? isHighlighted(d)
-                        : 1.0 //???
+            bars$update.each(function(d: DataPoint, index: number){
+                let $group = d3.select(this)
+                let $text = $group.select('text')
+                let $rect = $group.select('rect')
+                let props = {
+                    x: xScale(d.category),
+                    y: yScale(d.value),
+                    width: xScale.rangeBand(),
+                    height: height - yScale(d.value) - xAxisPadding
+                }
+               
+                $text.text(d.category)
+                    .attr({
+                    // x: props.x + (props.width / 2),
+                    // y: props.y,
+                    x: props.x - props.x,
+                    y: props.y - props.y,
+                    "text-anchor": "start", 
+                    "alignment-baseline": "middle",
+                    "font-size": "12px",
+                    transform: `rotate(90), translate(${props.y + 2}, ${-props.x - (props.width / 2)})`
+                    //translate(${props.y + 2}, ${-props.x - 10}
+                    
+                    
+                    //rotate(-10) translate(props.x, props.y)
                 })
-                .on("click", (d) => { //get the id of the selection
+                
+                   
+               // $rect.text(d.value)
+                $rect.attr(props)
+                .style({
+                    fill: d.color,
+                    "fill-opacity": viewModel.highlights === true 
+                    ? isHighlighted(d)
+                    : 1.0 //???
+                })
+                .on("click", () => { //get the id of the selection
                     this.selectionManager
-                        .select(d.identity, true) //true: for multiple selections
-                        .then(ids => {
-                            bars.style({ //check to see if the current id is selected then highlight 
-                                "fill-opacity": ids.length > 0 ?
-                                    d => ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5 : 1.0 //???
-                            });
+                    .select(d.identity, true) //true: for multiple selections
+                    .then(ids => {
+                        $rect.style({ //check to see if the current id is selected then highlight 
+                            "fill-opacity": ids.length > 0 ?
+                             ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5 : 1.0 //???
                         });
+                    });
                 }); //need to add ctrl click for multiple selections                                                
-            bars.exit() //Remove the data
+            });
+                bars$update.exit() //Remove the data
                 .remove();
 
 
@@ -330,7 +404,7 @@ module powerbi.extensibility.visual {
             //make sure categories and values are the same legth
             for (let i = 0, len = Math.max(category.values.length, measure.values.length); i < len; i++) { //loop through everything
                 viewModel.dataPoints.push({ //push everyting to the viewModel
-                    category: <string>category.values[i], //since categories.value is of PrimitiveType we have to specify Type here again
+                    category: (<string>category.values[i]).trim(), //since categories.value is of PrimitiveType we have to specify Type here again
                     value: <number>measure.values[i],
                     color: colorScale(<number>((color && color.values && color.values[i]) || measure.values[i])),//this.host.colorPalette.getColor(<string>categories.values[i]).value,
                     identity: this.host.createSelectionIdBuilder()

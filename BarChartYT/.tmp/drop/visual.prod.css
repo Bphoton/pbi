@@ -1,6 +1,7 @@
 .visual-barChartYT88854E76F5154CE9A918A731AFDE537F_DEBUG {
   
   
+  
 }
 .visual-barChartYT88854E76F5154CE9A918A731AFDE537F_DEBUG :root {
   --blue: #007bff;
@@ -8216,6 +8217,12 @@
     color: inherit;
     border-color: #dee2e6;
   }
+}
+.visual-barChartYT88854E76F5154CE9A918A731AFDE537F_DEBUG .overflowingText {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: block;
 }
 .visual-barChartYT88854E76F5154CE9A918A731AFDE537F_DEBUG p {
   font-size: 20px;
