@@ -249,6 +249,19 @@ module powerbi.extensibility.visual {
 
             const isHighlighted = (d: DataPoint) : number => d.highlighted === true ? 1.0 : 0.5 
 
+
+            let {color : colorSettings
+            } = this.settings
+
+            function textBasedOnBg(bgColor: string, lightColor: string, darkColor: string) {
+                var color = (bgColor.charAt(0) === '#') ? bgColor.substring(1, 7) : bgColor;
+                var r = parseInt(color.substring(0, 2), 16); // hexToR
+                var g = parseInt(color.substring(2, 4), 16); // hexToG
+                var b = parseInt(color.substring(4, 6), 16); // hexToB
+                return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
+                darkColor : lightColor 
+                  }
+    
             bars$update.each(function(d: DataPoint, index: number){
                 let $group = d3.select(this)
                 let $text = $group.select('text')
@@ -259,22 +272,26 @@ module powerbi.extensibility.visual {
                     width: xScale.rangeBand(),
                     height: height - yScale(d.value) - xAxisPadding
                 }
-               
+           //     return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
+              //  darkColor : lightColor 
                 $text.text(d.category)
                     .attr({
                     // x: props.x + (props.width / 2),
                     // y: props.y,
-                    x: props.x - props.x,
-                    y: props.y - props.y,
+                    "x": props.x + (props.width / 2),
+                    "y": props.y,
                     "text-anchor": "start", 
                     "alignment-baseline": "middle",
                     "font-size": "12px",
-                    transform: `rotate(90), translate(${props.y + 2}, ${-props.x - (props.width / 2)})`
+                    "transform": `rotate(90 ${props.x + (props.width / 2)} ${props.y})`,
+                    "fill":  textBasedOnBg(colorSettings.colorPickedMax, '#FFFFFF', '#000000')
+                })              
+
+                    
+                    // transform: `rotate(90), translate(${props.y + 2}, ${-props.x - (props.width / 2)})`
                     //translate(${props.y + 2}, ${-props.x - 10}
-                    
-                    
                     //rotate(-10) translate(props.x, props.y)
-                })
+               
                 
                    
                // $rect.text(d.value)
@@ -282,8 +299,8 @@ module powerbi.extensibility.visual {
                 .style({
                     fill: d.color,
                     "fill-opacity": viewModel.highlights === true 
-                    ? isHighlighted(d)
-                    : 1.0 //???
+                        ? isHighlighted(d)
+                        : 1.0 
                 })
                 .on("click", () => { //get the id of the selection
                     this.selectionManager
@@ -339,7 +356,13 @@ module powerbi.extensibility.visual {
             let categories: DataViewCategoryColumn[] = dv[0].categorical.categories; //get category array /0 is for multiple ceires
             let category: DataViewCategoryColumn = categories[0];
 
-            let values: DataViewValueColumns = dv[0].categorical.values; //0 is for multiple ceries
+            // Data View Measures W/O Group By Series
+             let values: DataViewValueColumns = dv[0].categorical.values
+
+            // Data View Measures With Group By Series //heightlights will break
+            //let groups: DataViewValueColumnGroup[] = dv[0].categorical.values.grouped(); //0 is for multiple ceries
+            //let values: DataViewValueColumnGroup = groups[0]
+
             let measure: DataViewValueColumn = values[0]
             let color: DataViewValueColumn = values[1]
             
@@ -400,7 +423,6 @@ module powerbi.extensibility.visual {
             let colorScale = d3.scale.linear<string>()
                 .domain([0, colorRange.max])
                 .range([colorSettings.colorPickedMin, colorSettings.colorPickedMax]);
-
             //make sure categories and values are the same legth
             for (let i = 0, len = Math.max(category.values.length, measure.values.length); i < len; i++) { //loop through everything
                 viewModel.dataPoints.push({ //push everyting to the viewModel

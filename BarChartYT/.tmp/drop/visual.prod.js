@@ -9420,6 +9420,15 @@ var powerbi;
                             .append('text')
                             .classed('bar__text', true);
                         var isHighlighted = function (d) { return d.highlighted === true ? 1.0 : 0.5; };
+                        var colorSettings = this.settings.color;
+                        function textBasedOnBg(bgColor, lightColor, darkColor) {
+                            var color = (bgColor.charAt(0) === '#') ? bgColor.substring(1, 7) : bgColor;
+                            var r = parseInt(color.substring(0, 2), 16); // hexToR
+                            var g = parseInt(color.substring(2, 4), 16); // hexToG
+                            var b = parseInt(color.substring(4, 6), 16); // hexToB
+                            return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
+                                darkColor : lightColor;
+                        }
                         bars$update.each(function (d, index) {
                             var _this = this;
                             var $group = d3.select(this);
@@ -9431,26 +9440,30 @@ var powerbi;
                                 width: xScale.rangeBand(),
                                 height: height - yScale(d.value) - xAxisPadding
                             };
+                            //     return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
+                            //  darkColor : lightColor 
                             $text.text(d.category)
                                 .attr({
                                 // x: props.x + (props.width / 2),
                                 // y: props.y,
-                                x: props.x - props.x,
-                                y: props.y - props.y,
+                                "x": props.x + (props.width / 2),
+                                "y": props.y,
                                 "text-anchor": "start",
                                 "alignment-baseline": "middle",
                                 "font-size": "12px",
-                                transform: "rotate(90), translate(" + (props.y + 2) + ", " + (-props.x - (props.width / 2)) + ")"
-                                //translate(${props.y + 2}, ${-props.x - 10}
-                                //rotate(-10) translate(props.x, props.y)
+                                "transform": "rotate(90 " + (props.x + (props.width / 2)) + " " + props.y + ")",
+                                "fill": textBasedOnBg(colorSettings.colorPickedMax, '#FFFFFF', '#000000')
                             });
+                            // transform: `rotate(90), translate(${props.y + 2}, ${-props.x - (props.width / 2)})`
+                            //translate(${props.y + 2}, ${-props.x - 10}
+                            //rotate(-10) translate(props.x, props.y)
                             // $rect.text(d.value)
                             $rect.attr(props)
                                 .style({
                                 fill: d.color,
                                 "fill-opacity": viewModel.highlights === true
                                     ? isHighlighted(d)
-                                    : 1.0 //???
+                                    : 1.0
                             })
                                 .on("click", function () {
                                 _this.selectionManager
@@ -9495,7 +9508,11 @@ var powerbi;
                             };
                         var categories = dv[0].categorical.categories; //get category array /0 is for multiple ceires
                         var category = categories[0];
-                        var values = dv[0].categorical.values; //0 is for multiple ceries
+                        // Data View Measures W/O Group By Series
+                        var values = dv[0].categorical.values;
+                        // Data View Measures With Group By Series //heightlights will break
+                        //let groups: DataViewValueColumnGroup[] = dv[0].categorical.values.grouped(); //0 is for multiple ceries
+                        //let values: DataViewValueColumnGroup = groups[0]
                         var measure = values[0];
                         var color = values[1];
                         var highlights = measure.highlights; //optional, thus may or may not be defined
