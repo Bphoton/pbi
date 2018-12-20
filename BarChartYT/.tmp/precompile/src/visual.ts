@@ -253,15 +253,24 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
             let {color : colorSettings
             } = this.settings
 
-            function textBasedOnBg(bgColor: string, lightColor: string, darkColor: string) {
-                var color = (bgColor.charAt(0) === '#') ? bgColor.substring(1, 7) : bgColor;
-                var r = parseInt(color.substring(0, 2), 16); // hexToR
-                var g = parseInt(color.substring(2, 4), 16); // hexToG
-                var b = parseInt(color.substring(4, 6), 16); // hexToB
-                return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
-                darkColor : lightColor 
-                  }
-    
+            // function textBasedOnBg(bgColor: string, lightColor: string, darkColor: string) {
+            //     var color = (bgColor.charAt(0) === '#') ? bgColor.substring(1, 7) : bgColor;
+            //     var r = parseInt(color.substring(0, 2), 16); // hexToR
+            //     var g = parseInt(color.substring(2, 4), 16); // hexToG
+            //     var b = parseInt(color.substring(4, 6), 16); // hexToB
+            //     return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
+            //     darkColor : lightColor 
+            //       }
+
+            function textBasedOnBg(bgColor: string) {
+            var color = (bgColor.charAt(0) === '#') ? bgColor.substring(1, 7) : bgColor;
+            var r = parseInt(color.substring(0, 2), 16); // hexToR
+            var g = parseInt(color.substring(2, 4), 16); // hexToG
+            var b = parseInt(color.substring(4, 6), 16); // hexToB
+            return ((r * 0.299) + (g * 0.587) + (b * 0.114)) 
+            //darkColor : lightColor 
+            }
+    // console.log(textBasedOnBg('#FFFFFF'))
             bars$update.each(function(d: DataPoint, index: number){
                 let $group = d3.select(this)
                 let $text = $group.select('text')
@@ -284,7 +293,10 @@ module powerbi.extensibility.visual.barChartYT88854E76F5154CE9A918A731AFDE537F  
                     "alignment-baseline": "middle",
                     "font-size": "12px",
                     "transform": `rotate(90 ${props.x + (props.width / 2)} ${props.y})`,
-                    "fill":  textBasedOnBg(colorSettings.colorPickedMax, '#FFFFFF', '#000000')
+                    "fill":  (textBasedOnBg(d.color) > 186) //|| textBasedOnBg(colorSettings.colorPickedMin) > 186)
+                        ? '#000000'
+                        : '#FFFFFF'
+                    
                 })              
 
                     
