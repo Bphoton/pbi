@@ -9323,12 +9323,15 @@ var powerbi;
                         var viewModel = this.getViewModel(options); //asign ViewModel
                         var width = options.viewport.width; //asign for container
                         var height = options.viewport.height;
+                        //console.log(height)
                         this.svg.attr({
                             width: width,
                             height: height
                         });
-                        var _a = this.settings, //??? do I need this here
-                        xAxisSettings = _a.xAxis, yAxisSettings = _a.yAxis, chartSettings = _a.chart;
+                        var _a = this.settings, xAxisSettings = _a.xAxis, //xAxisSettings is an object of properties
+                        yAxisSettings = _a.yAxis, //also a name of the object that can be accessed
+                        chartSettings = _a.chart;
+                        //this.settings.xAxis.padding === this.settings = {xAxis: xAxisSettings.padding} ///???
                         var xAxisPadding = xAxisSettings.show ? xAxisSettings.padding : 0;
                         var yScale = d3.scale.linear() //asign the yScale
                             .domain([0, viewModel.ranges.measure.max]) //get viewModel max
@@ -9437,60 +9440,75 @@ var powerbi;
                             return ((r * 0.299) + (g * 0.587) + (b * 0.114));
                             //darkColor : lightColor 
                         }
-                        // console.log(textBasedOnBg('#FFFFFF'))
                         bars$update.each(function (d, index) {
                             var _this = this;
-                            var $group = d3.select(this);
+                            var textElement = this; ////get the text width
+                            var localTextProps = textMeasurementService.getMeasurementProperties(textElement);
+                            console.log(localTextProps);
+                            localTextProps.fontSize = '12px';
+                            //let { textWidth, textHeight } = textMeasurementService.measureSvgTextRect(localTextProps) 
+                            var textSize = textMeasurementService.measureSvgTextRect(localTextProps, d.category);
+                            //console.log(textSize.width);
+                            var $group = d3.select(this); //??? what is this for
                             var $text = $group.select('text');
                             var $rect = $group.select('rect');
-                            var props = {
+                            var barProps = {
                                 x: xScale(d.category),
                                 y: yScale(d.value),
                                 width: xScale.rangeBand(),
-                                height: height - yScale(d.value) - xAxisPadding
+                                height: height - yScale(d.value) - xAxisPadding,
+                                stroke: 'black',
+                                'stroke-width': 0
                             };
-                            //     return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
-                            //  darkColor : lightColor 
+                            barProps.stroke = textSize.width > barProps.height ? 'red' : 'black';
+                            barProps['stroke-width'] = textSize.width > barProps.height ? 2 : 0;
+                            //console.log(height - (height - barProps.height))
+                            // if(width > 120){ ////
+                            //     let newText = textMeasurementService.getTailoredTextOrDefault(localTextProps, 120); 
+                            //     $text.text(newText)
+                            // }
                             $text.text(d.category)
                                 .attr({
-                                // x: props.x + (props.width / 2),
-                                // y: props.y,
-                                "x": props.x + (props.width / 2),
-                                "y": props.y,
+                                "x": barProps.x + (barProps.width / 2),
+                                //                   "y": barProps.y,
+                                "y": barProps.y,
                                 "text-anchor": "start",
                                 "alignment-baseline": "middle",
                                 "font-size": "12px",
-                                "transform": "rotate(90 " + (props.x + (props.width / 2)) + " " + props.y + ")",
+                                "transform": "rotate(90 " + (barProps.x + (barProps.width / 2)) + " " + barProps.y + ")",
                                 "fill": (textBasedOnBg(d.color) > 186) //|| textBasedOnBg(colorSettings.colorPickedMin) > 186)
                                     ? '#000000'
                                     : '#FFFFFF'
                             });
+                            //console.log(height)                    
                             // transform: `rotate(90), translate(${props.y + 2}, ${-props.x - (props.width / 2)})`
                             //translate(${props.y + 2}, ${-props.x - 10}
                             //rotate(-10) translate(props.x, props.y)
                             // $rect.text(d.value)
-                            $rect.attr(props)
+                            $rect.attr(barProps) //???props
                                 .style({
                                 fill: d.color,
                                 "fill-opacity": viewModel.highlights === true
-                                    ? isHighlighted(d)
+                                    ? isHighlighted(d) //??? d.color
                                     : 1.0
                             })
                                 .on("click", function () {
-                                _this.selectionManager
+                                _this.selectionManager //??? is this doing anything
                                     .select(d.identity, true) //true: for multiple selections
                                     .then(function (ids) {
                                     $rect.style({
                                         "fill-opacity": ids.length > 0 ?
-                                            ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5 : 1.0 //???
+                                            ids.indexOf(d.identity) >=
+                                                0 ?
+                                                1.0 :
+                                                0.5
+                                            : 1.0 //???
                                     });
                                 });
                             }); //need to add ctrl click for multiple selections                                                
                         });
                         bars$update.exit() //Remove the data
                             .remove();
-                        //???            let dataViews = undefined
-                        //???
                         // if(dataViews && dataViews[0] && dataViews[0].categorical && dataViews[0].categorical.values){
                         //     console.log('Has the stuffs')
                         // }
@@ -9590,7 +9608,7 @@ var powerbi;
                         }
                         //from the viewModel get the max
                         //viewModel.maxValue = d3.max(viewModel.dataPoints, d => d.value);
-                        viewModel.highlights = viewModel.dataPoints.filter(function (d) { return d.highlighted; }).length > 0;
+                        viewModel.highlights = viewModel.dataPoints.filter(function (d) { return d.highlighted; }).length > 0; //???
                         var getSortDataPointsByPropertyCallback = function (propertyName) {
                             return function (a, b) {
                                 return a[propertyName] > b[propertyName]
@@ -9632,7 +9650,7 @@ var powerbi;
                         else {
                             sortDataPointsCallback = getSortDataPointsByPropertyCallback('color');
                         }
-                        viewModel.dataPoints = viewModel.dataPoints.sort(sortDataPointsCallback);
+                        viewModel.dataPoints = viewModel.dataPoints.sort(sortDataPointsCallback); ///???
                         if (shouldReverse)
                             viewModel.dataPoints = viewModel.dataPoints.reverse();
                         //reduce number of datapoints

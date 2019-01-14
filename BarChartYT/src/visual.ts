@@ -30,21 +30,14 @@ import textMeasurementService = powerbi.extensibility.utils.formatting.textMeasu
 module powerbi.extensibility.visual {
     "use strict";
 
-    interface DataPoint { //DataPoint is not Typed here, only category and value
+    interface DataPoint { //DataPoint is not Typed here? implicit as an object?
         category: string;
         value: number;
         color: string;
-        identity: powerbi.visuals.ISelectionId;
+        identity: powerbi.visuals.ISelectionId; 
         highlighted: boolean;
     };
     
-    //Container for the datapoints plus some extra data
-    interface ViewModel { //separator b/t the code getting the data and render the data
-        dataPoints: DataPoint[]; //DataPoint as a whole is Typed here
-        ranges: Ranges;
-        highlights: boolean;
-    };
-
     interface Range {
         min: number;
         max: number;
@@ -54,6 +47,14 @@ module powerbi.extensibility.visual {
         measure: Range;
         color?: Range;
     }
+
+    //Container for the datapoints plus some extra data
+    interface ViewModel { //separator b/t the code getting the data and render the data
+        dataPoints: DataPoint[]; //DataPoint as a whole is Typed here?
+        ranges: Ranges;
+        highlights: boolean;
+    };
+
 
     export class Visual implements IVisual {
         private host: IVisualHost; //access the api
@@ -95,7 +96,7 @@ module powerbi.extensibility.visual {
         //     }
         // }
 
-        constructor(options: VisualConstructorOptions) {
+        constructor(options: VisualConstructorOptions) { //constructor to create something once
             this.host = options.host; //hover over to see Type /make it a member var
             this.svg = d3.select(options.element) //o.e is the main container for pbiviz
                 .append("svg")
@@ -124,19 +125,21 @@ module powerbi.extensibility.visual {
 
             let width = options.viewport.width; //asign for container
             let height = options.viewport.height;
-
+//console.log(height)
             this.svg.attr({ //update svg to the size of the container
                 width: width,
                 height: height
             });
 
-            let { //??? do I need this here
-                xAxis: xAxisSettings, 
-                yAxis: yAxisSettings,
+            let { 
+                xAxis: xAxisSettings, //xAxisSettings is an object of properties
+                yAxis: yAxisSettings, //also a name of the object that can be accessed
                 chart: chartSettings,
-            } = this.settings
+            } = this.settings 
+                //this.settings.xAxis.padding === this.settings = {xAxis: xAxisSettings.padding} ///???
 
             let xAxisPadding = xAxisSettings.show ? xAxisSettings.padding : 0;
+        
 
             let yScale = d3.scale.linear() //asign the yScale
                 .domain([0, viewModel.ranges.measure.max]) //get viewModel max
@@ -270,36 +273,51 @@ module powerbi.extensibility.visual {
             return ((r * 0.299) + (g * 0.587) + (b * 0.114)) 
             //darkColor : lightColor 
             }
-    // console.log(textBasedOnBg('#FFFFFF'))
+  
             bars$update.each(function(d: DataPoint, index: number){
-                let $group = d3.select(this)
+                let textElement: SVGTextElement = this ////get the text width
+                let localTextProps: TextProperties = textMeasurementService.getMeasurementProperties(textElement)
+                console.log(localTextProps)
+                localTextProps.fontSize = '12px'
+                //let { textWidth, textHeight } = textMeasurementService.measureSvgTextRect(localTextProps) 
+                let textSize =  textMeasurementService.measureSvgTextRect(localTextProps, d.category) 
+
+//console.log(textSize.width);
+                let $group = d3.select(this) //??? what is this for
                 let $text = $group.select('text')
                 let $rect = $group.select('rect')
-                let props = {
+                let barProps = {
                     x: xScale(d.category),
                     y: yScale(d.value),
                     width: xScale.rangeBand(),
-                    height: height - yScale(d.value) - xAxisPadding
+                    height: height - yScale(d.value) - xAxisPadding,
+                    stroke: 'black',
+                    'stroke-width': 0
                 }
-           //     return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?
-              //  darkColor : lightColor 
+                barProps.stroke = textSize.width > barProps.height ? 'red' : 'black'
+                barProps['stroke-width'] = textSize.width > barProps.height ? 2 : 0
+//console.log(height - (height - barProps.height))
+                // if(width > 120){ ////
+                //     let newText = textMeasurementService.getTailoredTextOrDefault(localTextProps, 120); 
+                //     $text.text(newText)
+                // }
                 $text.text(d.category)
                     .attr({
-                    // x: props.x + (props.width / 2),
-                    // y: props.y,
-                    "x": props.x + (props.width / 2),
-                    "y": props.y,
+                    "x": barProps.x + (barProps.width / 2),
+ //                   "y": barProps.y,
+                    "y": barProps.y
+                        ,
                     "text-anchor": "start", 
                     "alignment-baseline": "middle",
                     "font-size": "12px",
-                    "transform": `rotate(90 ${props.x + (props.width / 2)} ${props.y})`,
+                    "transform": `rotate(90 ${barProps.x + (barProps.width / 2)} ${barProps.y})`, //rotate at the origin of each data point
                     "fill":  (textBasedOnBg(d.color) > 186) //|| textBasedOnBg(colorSettings.colorPickedMin) > 186)
                         ? '#000000'
                         : '#FFFFFF'
                     
                 })              
 
-                    
+//console.log(height)                    
                     // transform: `rotate(90), translate(${props.y + 2}, ${-props.x - (props.width / 2)})`
                     //translate(${props.y + 2}, ${-props.x - 10}
                     //rotate(-10) translate(props.x, props.y)
@@ -307,37 +325,39 @@ module powerbi.extensibility.visual {
                 
                    
                // $rect.text(d.value)
-                $rect.attr(props)
+                $rect.attr(barProps) //???props
                 .style({
-                    fill: d.color,
+                    fill: d.color, //??? || d.value,
                     "fill-opacity": viewModel.highlights === true 
-                        ? isHighlighted(d)
-                        : 1.0 
+                        ? isHighlighted(d) //??? d.color
+                        : 1.0
                 })
                 .on("click", () => { //get the id of the selection
-                    this.selectionManager
+                    this.selectionManager //??? is this doing anything
                     .select(d.identity, true) //true: for multiple selections
                     .then(ids => {
                         $rect.style({ //check to see if the current id is selected then highlight 
                             "fill-opacity": ids.length > 0 ?
-                             ids.indexOf(d.identity) >= 0 ? 1.0 : 0.5 : 1.0 //???
+                             ids.indexOf(d.identity) >= 
+                             0 ? 
+                               1.0 : 
+                               0.5 
+                             : 1.0 //???
                         });
                     });
                 }); //need to add ctrl click for multiple selections                                                
             });
-                bars$update.exit() //Remove the data
-                .remove();
+            
+            
+            bars$update.exit() //Remove the data
+            .remove();
 
-
-
-//???            let dataViews = undefined
-//???
             // if(dataViews && dataViews[0] && dataViews[0].categorical && dataViews[0].categorical.values){
             //     console.log('Has the stuffs')
             // }
         }
 
-        private updateSettings(options: VisualUpdateOptions) : VisualSettings {
+        private updateSettings(options: VisualUpdateOptions) : VisualSettings { ///???
             return VisualSettings.parse(options.dataViews[0]) as VisualSettings;
 
             // this.settings.axis.x.show.value = DataViewObjects.getValue(
@@ -352,7 +372,6 @@ module powerbi.extensibility.visual {
         @logExceptions()
         public getViewModel(options: VisualUpdateOptions): ViewModel { //get data dynamically from the user
             let dv = options.dataViews; //get the data into a specific shape
-
             if (!dv //dont return anything untill all fields are filled in
                 || !dv[0]
                 || !dv[0].categorical
@@ -369,7 +388,7 @@ module powerbi.extensibility.visual {
             let category: DataViewCategoryColumn = categories[0];
 
             // Data View Measures W/O Group By Series
-             let values: DataViewValueColumns = dv[0].categorical.values
+            let values: DataViewValueColumns = dv[0].categorical.values
 
             // Data View Measures With Group By Series //heightlights will break
             //let groups: DataViewValueColumnGroup[] = dv[0].categorical.values.grouped(); //0 is for multiple ceries
@@ -384,7 +403,7 @@ module powerbi.extensibility.visual {
                 dataPoints: [],
                 ranges: { 
                     measure: {
-                        min: Math.min(...(<number[]>measure.values)),
+                        min: Math.min(...(<number[]>measure.values)), //...???
                         max: Math.max(...(<number[]>measure.values))
                     }
                 },
@@ -393,7 +412,7 @@ module powerbi.extensibility.visual {
 
             let hasColorValues: boolean = color && color.values !== undefined
 
-            if(hasColorValues){
+            if(hasColorValues){//??? this does nothing
                 viewModel.ranges.color = {
                     min: Math.min(...(<number[]>color.values)),
                     max: Math.max(...(<number[]>color.values))
@@ -453,7 +472,7 @@ module powerbi.extensibility.visual {
             }
             //from the viewModel get the max
             //viewModel.maxValue = d3.max(viewModel.dataPoints, d => d.value);
-            viewModel.highlights = viewModel.dataPoints.filter(d => d.highlighted).length > 0;
+            viewModel.highlights = viewModel.dataPoints.filter(d => d.highlighted).length > 0; //???
 
             type SortDataPointsCallback = (a: DataPoint, b: DataPoint) => number;
 
@@ -503,7 +522,7 @@ module powerbi.extensibility.visual {
                 sortDataPointsCallback = getSortDataPointsByPropertyCallback('color')
             }
 
-            viewModel.dataPoints = viewModel.dataPoints.sort(sortDataPointsCallback)
+            viewModel.dataPoints = viewModel.dataPoints.sort(sortDataPointsCallback) ///???
 
             if(shouldReverse) viewModel.dataPoints = viewModel.dataPoints.reverse()
 
